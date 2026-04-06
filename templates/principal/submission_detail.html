@@ -23,7 +23,6 @@
         <p><strong>Total Face Terdeteksi:</strong> {{ submission.total_faces }}</p>
         <p><strong>Ekspresi Dominan:</strong> {{ submission.predicted_label|default:'-' }}</p>
         <p><strong>Video:</strong> <a href="{{ submission.original_video.url }}">Buka Video</a></p>
-        <p><strong>Output Preprocessing:</strong> {{ submission.preprocessed_dir|default:'-' }}</p>
     </div>
 
     {% if submission.expression_breakdown %}
@@ -33,16 +32,22 @@
             {% with breakdown=submission.expression_breakdown|json_loads %}
             {% with total_filtered=breakdown|dict_sum_values %}
                 {% for emotion, count in breakdown.items %}
+                {% with bar_width=count|multiply:100|divide:total_filtered %}
                 <div class="breakdown-card">
                     <div class="emotion-label">{{ emotion }}</div>
                     <div class="emotion-count">{{ count }}</div>
                     <div class="emotion-bar">
-                        <div class="emotion-bar-fill" style="width: {% if total_filtered %}{{ count|multiply:100|divide:total_filtered }}%{% else %}0%{% endif %}"></div>
+                        {% if total_filtered %}
+                        <div class="emotion-bar-fill" style="width: {{ bar_width }}%"></div>
+                        {% else %}
+                        <div class="emotion-bar-fill" style="width: 0%"></div>
+                        {% endif %}
                     </div>
                     <div class="emotion-percentage">
-                        {% if total_filtered %}{{ count|multiply:100|divide:total_filtered|floatformat:1 }}%{% else %}0%{% endif %}
+                        {% if total_filtered %}{{ bar_width|floatformat:1 }}%{% else %}0%{% endif %}
                     </div>
                 </div>
+                {% endwith %}
                 {% endfor %}
             {% endwith %}
             {% endwith %}
