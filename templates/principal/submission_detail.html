@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}Detail Analitik Video{% endblock %}
+
+{% load custom_filters %}
+
+{% block content %}
+<section class="page-head">
+    <h1>Detail Analitik Video</h1>
+    <p>Informasi lengkap hasil analisis video pembelajaran per sesi.</p>
+</section>
+
+<section class="card">
+    <div class="detail-grid">
+        <p><strong>Guru:</strong> {{ submission.teacher.profile.full_name }}</p>
+        <p><strong>Mata Pelajaran:</strong> {{ submission.subject }}</p>
+        <p><strong>Kelas:</strong> {{ submission.class_name }}</p>
+        <p><strong>Hari/Jam:</strong> {{ submission.day }} | {{ submission.start_time|time:"H:i" }} - {{ submission.end_time|time:"H:i" }}</p>
+        <p><strong>Catatan:</strong> {{ submission.notes|default:'-' }}</p>
+        <p><strong>Status:</strong> {{ submission.get_status_display }}</p>
+        <p><strong>Tanggal Upload:</strong> {{ submission.created_at|date:"d M Y H:i" }}</p>
+        <p><strong>Waktu Proses:</strong> {{ submission.processed_at|date:"d M Y H:i"|default:'-' }}</p>
+        <p><strong>Total Face Terdeteksi:</strong> {{ submission.total_faces }}</p>
+        <p><strong>Ekspresi Dominan:</strong> {{ submission.predicted_label|default:'-' }}</p>
+        <p><strong>Video:</strong> <a href="{{ submission.original_video.url }}">Buka Video</a></p>
+        <p><strong>Output Preprocessing:</strong> {{ submission.preprocessed_dir|default:'-' }}</p>
+    </div>
+
+    {% if submission.expression_breakdown %}
+    <h2>📊 Breakdown Ekspresi</h2>
+    <div class="breakdown-section">
+        <div class="breakdown-grid">
+            {% with breakdown=submission.expression_breakdown|json_loads %}
+            {% with total_filtered=breakdown|dict_sum_values %}
+                {% for emotion, count in breakdown.items %}
+                <div class="breakdown-card">
+                    <div class="emotion-label">{{ emotion }}</div>
+                    <div class="emotion-count">{{ count }}</div>
+                    <div class="emotion-bar">
+                        <div class="emotion-bar-fill" style="width: {% if total_filtered %}{{ count|multiply:100|divide:total_filtered }}%{% else %}0%{% endif %}"></div>
+                    </div>
+                    <div class="emotion-percentage">
+                        {% if total_filtered %}{{ count|multiply:100|divide:total_filtered|floatformat:1 }}%{% else %}0%{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% endwith %}
+            {% endwith %}
+        </div>
+        {% with breakdown=submission.expression_breakdown|json_loads %}
+        {% with total_filtered=breakdown|dict_sum_values %}
+        <p class="breakdown-note">Total: {{ submission.total_faces }} faces terdeteksi ({{ total_filtered }} melewati threshold confidence 0.75)</p>
+        {% endwith %}
+        {% endwith %}
+    </div>
+    {% endif %}
+
+    <h2>Log Pipeline</h2>
+    <pre class="log-box">{{ submission.process_log|default:'Belum ada log.' }}</pre>
+</section>
+
+<style>
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 15px;
+    }
+
+    .detail-grid p {
+        margin: 0;
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 3px solid #007e86;
+    }
+
+    .detail-grid strong {
+        color: #007e86;
+    }
+
+    .breakdown-section {
+        margin: 30px 0;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+    }
+
+    .breakdown-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+
+    .breakdown-card {
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    .breakdown-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .emotion-label {
+        font-weight: 700;
+        color: #333;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+    .emotion-count {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007e86;
+        margin-bottom: 10px;
+    }
+
+    .emotion-bar {
+        height: 25px;
+        background: #e9ecef;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    .emotion-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #007e86, #04555c);
+        border-radius: 12px;
+        transition: width 0.4s ease;
+    }
+
+    .emotion-percentage {
+        font-size: 12px;
+        color: #6c757d;
+        text-align: center;
+        font-weight: 600;
+    }
+
+    .breakdown-note {
+        margin-top: 20px;
+        padding: 12px;
+        background: #f0f3f5;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #495057;
+        text-align: center;
+        border-left: 3px solid #007e86;
+    }
+</style>
+{% endblock %}

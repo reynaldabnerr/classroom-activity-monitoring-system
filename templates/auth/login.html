@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Login Sistem{% endblock %}
+
+{% block content %}
+<section class="card auth-card">
+    <h1>Login Sistem Informasi Sekolah</h1>
+    <p class="muted">Akses untuk Guru dan Kepala Sekolah</p>
+
+    <form method="post" class="form-grid">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <label for="id_username">Username</label>
+        {{ form.username }}
+
+        <label for="id_password">Password</label>
+        {{ form.password }}
+
+        <button class="btn" type="submit">Login</button>
+    </form>
+
+    <div class="auth-hint muted">
+        <p>Contoh akun dapat dibuat dari admin Django.</p>
+    </div>
+</section>
+{% endblock %}

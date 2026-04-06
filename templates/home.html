@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block title %}SI Akademik{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h1>Selamat datang di Sistem Informasi Akademik</h1>
+    <p>Silakan login untuk melanjutkan.</p>
+    <a class="btn" href="{% url 'login' %}">Masuk</a>
+</section>
+{% endblock %}

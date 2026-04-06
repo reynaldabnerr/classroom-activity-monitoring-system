@@ -1,0 +1,49 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistem Informasi Sekolah{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
+</head>
+<body>
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <nav class="navbar">
+        <div class="container nav-wrapper">
+            <a href="{% url 'home' %}" class="logo">SI Akademik</a>
+            <div class="nav-right">
+                {% if user.is_authenticated %}
+                    <span class="nav-user">{{ auth_full_name|default:user.username }}</span>
+                    {% if auth_role == ROLE_TEACHER %}
+                        <a href="{% url 'teacher-dashboard' %}">Dashboard Guru</a>
+                        <a href="{% url 'teacher-upload' %}">Upload Video</a>
+                    {% elif auth_role == ROLE_PRINCIPAL %}
+                        <a href="{% url 'principal-dashboard' %}">Dashboard Kepala Sekolah</a>
+                    {% endif %}
+                    <form method="post" action="{% url 'logout' %}" class="logout-form">
+                        {% csrf_token %}
+                        <button type="submit" class="logout-btn">Logout</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}">Login</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content app-shell">
+        <div class="container">
+            {% if messages %}
+                <div class="message-stack">
+                    {% for message in messages %}
+                        <div class="message {{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</body>
+</html>

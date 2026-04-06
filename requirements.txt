@@ -1,0 +1,5 @@
+Django==6.0.2
+opencv-python
+mediapipe
+ultralytics
+huggingface-hub

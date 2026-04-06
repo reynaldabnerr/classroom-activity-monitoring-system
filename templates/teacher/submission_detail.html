@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+
+{% block title %}Detail Upload{% endblock %}
+
+{% load custom_filters %}
+
+{% block content %}
+<section class="page-head">
+    <h1>Detail Upload Guru</h1>
+    <p>Ringkasan metadata, hasil preprocessing, dan log proses pipeline.</p>
+</section>
+
+<section class="card">
+    <div class="detail-grid">
+        <p><strong>Mata Pelajaran:</strong> {{ submission.subject }}</p>
+        <p><strong>Kelas:</strong> {{ submission.class_name }}</p>
+        <p><strong>Jadwal:</strong> {{ submission.day }}, {{ submission.start_time }} - {{ submission.end_time }}</p>
+        <p><strong>Catatan:</strong> {{ submission.notes|default:'-' }}</p>
+        <p><strong>Tanggal Upload:</strong> {{ submission.created_at|date:"d M Y H:i" }}</p>
+        <p><strong>Status:</strong> {{ submission.get_status_display }}</p>
+        <p><strong>Waktu Proses Selesai:</strong> {{ submission.processed_at|date:"d M Y H:i"|default:'-' }}</p>
+        <p><strong>Jumlah Face:</strong> {{ submission.total_faces }}</p>
+        <p><strong>Skor Model:</strong> {{ submission.model_score|floatformat:2 }}</p>
+        <p><strong>Prediksi:</strong> {{ submission.predicted_label|default:'-' }}</p>
+        <p><strong>File Video:</strong> <a href="{{ submission.original_video.url }}">Buka File</a></p>
+        <p><strong>Direktori Hasil Preprocess:</strong> {{ submission.preprocessed_dir|default:'-' }}</p>
+    </div>
+
+    {% if submission.expression_breakdown %}
+    <h2>📊 Breakdown Ekspresi</h2>
+    <div class="breakdown-section">
+        <div class="breakdown-grid">
+            {% with breakdown=submission.expression_breakdown|json_loads %}
+            {% with total_filtered=breakdown|dict_sum_values %}
+                {% for emotion, count in breakdown.items %}
+                <div class="breakdown-card">
+                    <div class="emotion-label">{{ emotion }}</div>
+                    <div class="emotion-count">{{ count }}</div>
+                    <div class="emotion-bar">
+                        <div class="emotion-bar-fill" style="width: {% if total_filtered %}{{ count|multiply:100|divide:total_filtered }}%{% else %}0%{% endif %}"></div>
+                    </div>
+                    <div class="emotion-percentage">
+                        {% if total_filtered %}{{ count|multiply:100|divide:total_filtered|floatformat:1 }}%{% else %}0%{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% endwith %}
+            {% endwith %}
+        </div>
+        {% with breakdown=submission.expression_breakdown|json_loads %}
+        {% with total_filtered=breakdown|dict_sum_values %}
+        <p class="breakdown-note">Total: {{ submission.total_faces }} faces terdeteksi ({{ total_filtered }} melewati threshold confidence 0.75)</p>
+        {% endwith %}
+        {% endwith %}
+    </div>
+    {% endif %}
+
+    <h2>Log Proses</h2>
+    <pre class="log-box">{{ submission.process_log|default:'Belum ada log.' }}</pre>
+
+    <!-- Action Buttons -->
+    <div class="action-section">
+        <h3>⚙️ Aksi Lanjutan</h3>
+        <div class="action-buttons">
+            <a href="{% url 'teacher-dashboard' %}" class="btn btn-secondary">
+                ← Kembali ke Dashboard
+            </a>
+            <a href="{% url 'teacher-delete-submission' submission.id %}" class="btn btn-danger">
+                🗑️ Hapus Video
+            </a>
+        </div>
+    </div>
+</section>
+
+<style>
+    .action-section {
+        margin-top: 40px;
+        padding: 30px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        border-left: 4px solid #007e86;
+    }
+
+    .action-section h3 {
+        color: #333;
+        margin: 0 0 20px 0;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        padding: 14px 28px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 15px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.2);
+        transition: left 0.3s ease;
+        z-index: 0;
+    }
+
+    .btn:hover::before {
+        left: 100%;
+    }
+
+    .btn > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        box-shadow: 0 8px 24px rgba(108, 117, 125, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .btn-secondary:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(108, 117, 125, 0.2);
+    }
+
+    .btn-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+    }
+
+    .btn-danger:hover {
+        box-shadow: 0 8px 24px rgba(220, 53, 69, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .btn-danger:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
+    }
+
+    @media (max-width: 600px) {
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .btn {
+            justify-content: center;
+            width: 100%;
+        }
+    }
+
+    .breakdown-section {
+        margin: 30px 0;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+    }
+
+    .breakdown-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+
+    .breakdown-card {
+        background: white;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    .breakdown-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .emotion-label {
+        font-weight: 700;
+        color: #333;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+    .emotion-count {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007e86;
+        margin-bottom: 10px;
+    }
+
+    .emotion-bar {
+        height: 25px;
+        background: #e9ecef;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    .emotion-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #007e86, #04555c);
+        border-radius: 12px;
+        transition: width 0.4s ease;
+    }
+
+    .emotion-percentage {
+        font-size: 12px;
+        color: #6c757d;
+        text-align: center;
+        font-weight: 600;
+    }
+
+    .breakdown-note {
+        margin-top: 20px;
+        padding: 12px;
+        background: #f0f3f5;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #495057;
+        text-align: center;
+        border-left: 3px solid #007e86;
+    }
+</style>
+{% endblock %}

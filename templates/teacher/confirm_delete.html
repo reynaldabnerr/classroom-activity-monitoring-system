@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Hapus Submission{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Hapus Video Submission</h1>
+        <p>Konfirmasi penghapusan video dan semua data terkait</p>
+    </div>
+
+    <div class="delete-confirmation" style="max-width: 600px; margin: 40px auto;">
+        <div class="card" style="border: 2px solid #dc3545; padding: 30px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div style="font-size: 48px; color: #dc3545; margin-bottom: 15px;">⚠️</div>
+                <h2 style="color: #333; margin: 10px 0;">Yakin ingin menghapus?</h2>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                <h3 style="margin-top: 0; color: #333;">Detail Submission yang akan dihapus:</h3>
+                <div style="line-height: 1.8;">
+                    <p><strong>Mata Pelajaran:</strong> {{ submission.subject }}</p>
+                    <p><strong>Kelas:</strong> {{ submission.class_name }}</p>
+                    <p><strong>Hari:</strong> {{ submission.day }}</p>
+                    <p><strong>Waktu:</strong> {{ submission.start_time|time:"H:i" }} - {{ submission.end_time|time:"H:i" }}</p>
+                    <p><strong>Status:</strong> {{ submission.get_status_display }}</p>
+                </div>
+            </div>
+
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 30px; border-radius: 4px;">
+                <p style="margin: 0; color: #856404;">
+                    ✕ File video asli akan dihapus<br>
+                    ✕ File preprocessing akan dihapus<br>
+                    ✕ Data model inference akan dihapus<br>
+                    ✕ Tidak dapat dibatalkan setelah dikonfirmasi
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <form method="post" style="flex: 1; max-width: 250px;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-delete-confirm">
+                        ✓ Ya, Hapus Video
+                    </button>
+                </form>
+                <a href="{% url 'teacher-submission-detail' submission.id %}" class="btn-delete-cancel">
+                    ✕ Batal
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .page-header {
+        margin-bottom: 40px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .page-header h1 {
+        margin: 0 0 10px 0;
+        color: #333;
+        font-size: 32px;
+    }
+
+    .page-header p {
+        margin: 0;
+        color: #666;
+        font-size: 16px;
+    }
+
+    .card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .btn-delete-confirm,
+    .btn-delete-cancel {
+        padding: 14px 28px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 15px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        width: 100%;
+    }
+
+    .btn-delete-confirm {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+    }
+
+    .btn-delete-confirm:hover {
+        box-shadow: 0 8px 24px rgba(220, 53, 69, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .btn-delete-confirm:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
+    }
+
+    .btn-delete-cancel {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        color: white;
+    }
+
+    .btn-delete-cancel:hover {
+        box-shadow: 0 8px 24px rgba(108, 117, 125, 0.3);
+        transform: translateY(-2px);
+        text-decoration: none;
+    }
+
+    .btn-delete-cancel:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(108, 117, 125, 0.2);
+    }
+
+    @media (max-width: 600px) {
+        .btn-delete-confirm,
+        .btn-delete-cancel {
+            flex: 1;
+        }
+    }
+</style>
+{% endblock %}

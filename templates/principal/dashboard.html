@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Dashboard Kepala Sekolah{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <h1>Dashboard Kepala Sekolah</h1>
+    <p>Analitik performa pembelajaran dari video yang diunggah guru.</p>
+</section>
+
+<section class="grid-metrics">
+    <div class="metric card">
+        <h3>Total Data</h3>
+        <p>{{ summary.total|default:0 }}</p>
+    </div>
+    <div class="metric card">
+        <h3>Selesai</h3>
+        <p>{{ completed_count }}</p>
+    </div>
+    <div class="metric card">
+        <h3>Sedang Diproses</h3>
+        <p>{{ processing_count }}</p>
+    </div>
+    <div class="metric card">
+        <h3>Gagal</h3>
+        <p>{{ failed_count }}</p>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Analitik Per Mata Pelajaran</h2>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Mata Pelajaran</th>
+                    <th>Total Video</th>
+                    <th>Deskripsi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in subject_stats %}
+                    <tr>
+                        <td><strong>{{ stat.subject }}</strong></td>
+                        <td>{{ stat.total }}</td>
+                        <td>
+                            <span class="badge-info">📊 {{ stat.total }} video selesai dianalisis</span>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="3" style="text-align: center; color: #999;">Belum ada data analitik.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card">
+    <h2>📈 Aktivitas Minggu Ini</h2>
+    <div class="weekly-chart">
+        <div class="chart-legend">
+            <p style="font-size: 13px; color: #666;">Jumlah video yang selesai diproses per hari (7 hari terakhir)</p>
+        </div>
+        <div class="chart-bars">
+            {% for data in weekly_data %}
+            <div class="chart-bar-item">
+                <div class="chart-bar" style="height: {% if data.count %}{{ data.count|multiply:100|divide:10 }}%{% else %}2%{% endif %}">
+                    <span class="bar-value">{{ data.count }}</span>
+                </div>
+                <span class="bar-label">{{ data.date|date:"d M" }}</span>
+            </div>
+            {% empty %}
+            <p style="text-align: center; color: #999; padding: 20px;">Belum ada aktivitas minggu ini.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <h2>20 Upload Terbaru</h2>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Guru</th>
+                    <th>Mapel</th>
+                    <th>Kelas</th>
+                    <th>Status</th>
+                    <th>Ekspresi Dominan</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in submissions %}
+                    <tr>
+                        <td>{{ item.teacher.profile.full_name }}</td>
+                        <td>{{ item.subject }}</td>
+                        <td>{{ item.class_name }}</td>
+                        <td><span class="badge badge-{{ item.status }}">{{ item.get_status_display }}</span></td>
+                        <td>{{ item.predicted_label|default:'-' }}</td>
+                        <td><a href="{% url 'principal-submission-detail' item.id %}">Detail</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">Belum ada data upload.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+<style>
+    .badge-info {
+        display: inline-block;
+        background: #e7f3ff;
+        color: #007e86;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .weekly-chart {
+        padding: 20px 0;
+    }
+
+    .chart-legend {
+        margin-bottom: 20px;
+    }
+
+    .chart-bars {
+        display: flex;
+        gap: 20px;
+        align-items: flex-end;
+        height: 200px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        overflow-x: auto;
+    }
+
+    .chart-bar-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 60px;
+    }
+
+    .chart-bar {
+        width: 100%;
+        background: linear-gradient(180deg, #007e86 0%, #04555c 100%);
+        border-radius: 6px 6px 0 0;
+        min-height: 20px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .chart-bar:hover {
+        box-shadow: 0 4px 12px rgba(0, 126, 134, 0.3);
+        transform: scaleY(1.05);
+    }
+
+    .bar-value {
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        margin-bottom: 4px;
+    }
+
+    .bar-label {
+        font-size: 12px;
+        color: #666;
+        font-weight: 600;
+        text-align: center;
+    }
+</style>
