@@ -47,16 +47,9 @@
             {% endwith %}
             {% endwith %}
         </div>
-        {% with breakdown=submission.expression_breakdown|json_loads %}
-        {% with total_filtered=breakdown|dict_sum_values %}
-        <p class="breakdown-note">Total: {{ submission.total_faces }} faces terdeteksi ({{ total_filtered }} melewati threshold confidence 0.75)</p>
-        {% endwith %}
-        {% endwith %}
     </div>
     {% endif %}
 
-    <h2>Log Pipeline</h2>
-    <pre class="log-box">{{ submission.process_log|default:'Belum ada log.' }}</pre>
 </section>
 
 <style>

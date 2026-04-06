@@ -7,7 +7,7 @@
 {% block content %}
 <section class="page-head">
     <h1>Detail Upload Guru</h1>
-    <p>Ringkasan metadata, hasil preprocessing, dan log proses pipeline.</p>
+    <p>Ringkasan metadata dan hasil preprocessing.</p>
 </section>
 
 <section class="card">
@@ -47,16 +47,8 @@
             {% endwith %}
             {% endwith %}
         </div>
-        {% with breakdown=submission.expression_breakdown|json_loads %}
-        {% with total_filtered=breakdown|dict_sum_values %}
-        <p class="breakdown-note">Total: {{ submission.total_faces }} faces terdeteksi ({{ total_filtered }} melewati threshold confidence 0.75)</p>
-        {% endwith %}
-        {% endwith %}
     </div>
     {% endif %}
-
-    <h2>Log Proses</h2>
-    <pre class="log-box">{{ submission.process_log|default:'Belum ada log.' }}</pre>
 
     <!-- Action Buttons -->
     <div class="action-section">
