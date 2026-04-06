@@ -52,13 +52,45 @@
 
     <!-- Action Buttons -->
     <div class="action-section">
-        <h3>⚙️ Aksi Lanjutan</h3>
+        <div class="action-header">
+            <div class="action-badge" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 8v8"></path>
+                    <path d="M8.5 12h7"></path>
+                </svg>
+            </div>
+            <div>
+                <h3>Aksi Cepat</h3>
+                <p>Kelola video ini tanpa kehilangan konteks detail analisis.</p>
+            </div>
+        </div>
         <div class="action-buttons">
             <a href="{% url 'teacher-dashboard' %}" class="btn btn-secondary">
-                ← Kembali ke Dashboard
+                <span class="btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 18l-6-6 6-6"></path>
+                    </svg>
+                </span>
+                <span class="btn-text">
+                    <span class="btn-title">Kembali</span>
+                    <span class="btn-subtitle">Ke dashboard guru</span>
+                </span>
             </a>
             <a href="{% url 'teacher-delete-submission' submission.id %}" class="btn btn-danger">
-                🗑️ Hapus Video
+                <span class="btn-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M8 6V4h8v2"></path>
+                        <path d="M6 6l1 14h10l1-14"></path>
+                        <path d="M10 11v5"></path>
+                        <path d="M14 11v5"></path>
+                    </svg>
+                </span>
+                <span class="btn-text">
+                    <span class="btn-title">Hapus video</span>
+                    <span class="btn-subtitle">Tindakan permanen</span>
+                </span>
             </a>
         </div>
     </div>
@@ -67,17 +99,50 @@
 <style>
     .action-section {
         margin-top: 40px;
-        padding: 30px;
-        background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
-        border-radius: 12px;
-        border-left: 4px solid #007e86;
+        padding: 28px;
+        background: linear-gradient(135deg, #f7fafb 0%, #edf3f4 100%);
+        border-radius: 16px;
+        border: 1px solid #d7e4e6;
+        box-shadow: 0 10px 24px rgba(0, 126, 134, 0.08);
     }
 
-    .action-section h3 {
-        color: #333;
-        margin: 0 0 20px 0;
+    .action-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 20px;
+    }
+
+    .action-badge {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #007e86 0%, #04555c 100%);
+        color: white;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        box-shadow: 0 8px 18px rgba(0, 126, 134, 0.22);
+    }
+
+    .action-badge svg,
+    .btn-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .action-header h3 {
+        color: #17343a;
+        margin: 0;
         font-size: 18px;
         font-weight: 700;
+    }
+
+    .action-header p {
+        margin: 4px 0 0 0;
+        color: #5e7175;
+        font-size: 14px;
+        line-height: 1.5;
     }
 
     .action-buttons {
@@ -97,10 +162,12 @@
         font-size: 15px;
         display: inline-flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         position: relative;
         overflow: hidden;
+        text-align: left;
+        min-width: 260px;
     }
 
     .btn::before {
@@ -122,6 +189,35 @@
     .btn > * {
         position: relative;
         z-index: 1;
+    }
+
+    .btn-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    .btn-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .btn-title {
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .btn-subtitle {
+        font-size: 12px;
+        line-height: 1.2;
+        opacity: 0.88;
+        font-weight: 500;
     }
 
     .btn-secondary {
@@ -155,6 +251,10 @@
     }
 
     @media (max-width: 600px) {
+        .action-header {
+            align-items: flex-start;
+        }
+
         .action-buttons {
             flex-direction: column;
         }
@@ -162,6 +262,7 @@
         .btn {
             justify-content: center;
             width: 100%;
+            min-width: 0;
         }
     }
 
