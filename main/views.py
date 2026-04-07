@@ -176,8 +176,9 @@ def delete_submission(request, submission_id):
 def principal_dashboard(request):
     from django.utils import timezone
     from datetime import timedelta
+    import json
     
-    submissions = VideoSubmission.objects.select_related('teacher').all()
+    submissions = VideoSubmission.objects.select_related('teacher', 'teacher__profile').all()
     summary = submissions.aggregate(
         total=Count('id'),
         completed=Count('id', filter=Q(status=VideoSubmission.STATUS_COMPLETED)),
@@ -186,32 +187,93 @@ def principal_dashboard(request):
     completed_count = submissions.filter(status=VideoSubmission.STATUS_COMPLETED).count()
     processing_count = submissions.filter(status=VideoSubmission.STATUS_PROCESSING).count()
     failed_count = submissions.filter(status=VideoSubmission.STATUS_FAILED).count()
+    pending_count = submissions.filter(status=VideoSubmission.STATUS_PENDING).count()
 
-    # Analytics per Mata Pelajaran
+    # Analytics per Mata Pelajaran dengan success rate
     subject_stats = (
-        submissions.filter(status=VideoSubmission.STATUS_COMPLETED)
-        .values('subject')
+        submissions.values('subject')
         .annotate(
             total=Count('id'),
-            avg_faces=Count('total_faces'),
+            completed=Count('id', filter=Q(status=VideoSubmission.STATUS_COMPLETED)),
+            processing=Count('id', filter=Q(status=VideoSubmission.STATUS_PROCESSING)),
+            failed=Count('id', filter=Q(status=VideoSubmission.STATUS_FAILED)),
         )
         .order_by('-total')
     )
+    
+    # Hitung success rate untuk masing-masing subject
+    for stat in subject_stats:
+        stat['success_rate'] = (stat['completed'] / stat['total'] * 100) if stat['total'] > 0 else 0
 
     # Weekly breakdown (last 7 days)
     today = timezone.now().date()
-    week_ago = today - timedelta(days=7)
-    weekly_data = (
-        submissions.filter(
+    week_ago = today - timedelta(days=6)
+    
+    weekly_data = []
+    for i in range(7):
+        date = week_ago + timedelta(days=i)
+        count = submissions.filter(
             status=VideoSubmission.STATUS_COMPLETED,
-            created_at__date__gte=week_ago,
-            created_at__date__lte=today
+            created_at__date=date
+        ).count()
+        day_name = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'][date.weekday()]
+        weekly_data.append({
+            'date': date,
+            'day_name': day_name,
+            'count': count
+        })
+
+    # Monthly breakdown (last 6 months)
+    six_months_ago = today - timedelta(days=180)
+    monthly_data = []
+    for i in range(6):
+        month_start = six_months_ago + timedelta(days=30*i)
+        month_end = month_start + timedelta(days=29)
+        count = submissions.filter(
+            status=VideoSubmission.STATUS_COMPLETED,
+            created_at__date__gte=month_start,
+            created_at__date__lte=month_end
+        ).count()
+        monthly_data.append({
+            'month': month_start.strftime('%b'),
+            'count': count
+        })
+
+    # Teacher Performance (top 5 teachers)
+    teacher_stats = (
+        submissions.values('teacher__profile__full_name', 'teacher_id')
+        .annotate(
+            total=Count('id'),
+            completed=Count('id', filter=Q(status=VideoSubmission.STATUS_COMPLETED)),
+            failed=Count('id', filter=Q(status=VideoSubmission.STATUS_FAILED)),
         )
-        .extra(select={'date': 'DATE(created_at)'})
-        .values('date')
-        .annotate(count=Count('id'))
-        .order_by('date')
+        .order_by('-total')[:5]
     )
+    
+    for stat in teacher_stats:
+        stat['success_rate'] = (stat['completed'] / stat['total'] * 100) if stat['total'] > 0 else 0
+        stat['full_name'] = stat['teacher__profile__full_name'] or 'Unknown'
+
+    # Day of week analysis (activity pattern)
+    day_analysis = (
+        submissions.filter(status=VideoSubmission.STATUS_COMPLETED)
+        .values('day')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+
+    # Expression frequency (aggregate from all completed submissions)
+    expression_freq = {}
+    for submission in submissions.filter(status=VideoSubmission.STATUS_COMPLETED):
+        try:
+            breakdown = json.loads(submission.expression_breakdown)
+            for expr, count in breakdown.items():
+                expression_freq[expr] = expression_freq.get(expr, 0) + count
+        except:
+            pass
+    
+    # Top 5 expressions
+    top_expressions = sorted(expression_freq.items(), key=lambda x: x[1], reverse=True)[:5]
 
     context = {
         'submissions': submissions[:20],
@@ -219,8 +281,13 @@ def principal_dashboard(request):
         'completed_count': completed_count,
         'processing_count': processing_count,
         'failed_count': failed_count,
+        'pending_count': pending_count,
         'subject_stats': subject_stats,
         'weekly_data': weekly_data,
+        'monthly_data': monthly_data,
+        'teacher_stats': teacher_stats,
+        'day_analysis': day_analysis,
+        'top_expressions': top_expressions,
     }
     return render(request, 'principal/dashboard.html', context)
 
