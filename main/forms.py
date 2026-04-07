@@ -40,7 +40,7 @@ class VideoSubmissionForm(forms.ModelForm):
             'original_video',
         ]
         widgets = {
-            'subject': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Contoh: Matematika'}),
+            'subject': forms.Select(attrs={'class': 'form-control'}),
             'class_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Contoh: X IPA 1'}),
             'submission_date': forms.DateInput(attrs={
                 'class': 'form-control',

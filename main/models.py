@@ -31,8 +31,19 @@ class VideoSubmission(models.Model):
 		(STATUS_FAILED, 'Gagal'),
 	]
 
+	SUBJECT_ENGLISH = 'english'
+	SUBJECT_BAHASA = 'bahasa_indonesia'
+	SUBJECT_SCIENCE = 'science'
+	SUBJECT_MATH = 'math'
+	SUBJECT_CHOICES = [
+		(SUBJECT_ENGLISH, 'English'),
+		(SUBJECT_BAHASA, 'Bahasa Indonesia'),
+		(SUBJECT_SCIENCE, 'Science'),
+		(SUBJECT_MATH, 'Math'),
+	]
+
 	teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='video_submissions')
-	subject = models.CharField(max_length=100)
+	subject = models.CharField(max_length=50, choices=SUBJECT_CHOICES)
 	class_name = models.CharField(max_length=100)
 	submission_date = models.DateField(default=timezone.now, help_text="Tanggal pembelajaran")
 	day = models.CharField(max_length=20, editable=False, default='Senin')  # Auto-generated dari tanggal
