@@ -189,7 +189,7 @@ def principal_dashboard(request):
     failed_count = submissions.filter(status=VideoSubmission.STATUS_FAILED).count()
     pending_count = submissions.filter(status=VideoSubmission.STATUS_PENDING).count()
 
-    # Analytics per Mata Pelajaran dengan success rate
+    # Analytics per Mata Pelajaran dengan ekspresi dominan
     subject_stats = (
         submissions.values('subject')
         .annotate(
@@ -201,9 +201,27 @@ def principal_dashboard(request):
         .order_by('-total')
     )
     
-    # Hitung success rate untuk masing-masing subject
+    # Hitung ekspresi dominan untuk masing-masing subject
     for stat in subject_stats:
         stat['success_rate'] = (stat['completed'] / stat['total'] * 100) if stat['total'] > 0 else 0
+        
+        # Get expressions for this subject
+        subject_submissions = submissions.filter(
+            subject=stat['subject'],
+            status=VideoSubmission.STATUS_COMPLETED
+        )
+        
+        expression_freq = {}
+        for submission in subject_submissions:
+            try:
+                breakdown = json.loads(submission.expression_breakdown)
+                for expr, count in breakdown.items():
+                    expression_freq[expr] = expression_freq.get(expr, 0) + count
+            except:
+                pass
+        
+        # Top 3 expressions for this subject
+        stat['expressions'] = sorted(expression_freq.items(), key=lambda x: x[1], reverse=True)[:3]
 
     # Weekly breakdown (last 7 days)
     today = timezone.now().date()
@@ -298,6 +316,50 @@ def principal_submission_detail(request, submission_id):
     return render(request, 'principal/submission_detail.html', {'submission': submission})
 
 
+@login_required
+@role_required([UserProfile.ROLE_PRINCIPAL])
+def submissions_by_date(request):
+    """API endpoint untuk filter submissions berdasarkan date range"""
+    from datetime import datetime
+    
+    date_from_str = request.GET.get('date_from')
+    date_to_str = request.GET.get('date_to')
+    
+    if not date_from_str or not date_to_str:
+        return JsonResponse({'error': 'date_from dan date_to harus disediakan'}, status=400)
+    
+    try:
+        date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+        date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'error': 'Format tanggal tidak valid'}, status=400)
+    
+    # Filter submissions berdasarkan date range
+    submissions = VideoSubmission.objects.filter(
+        created_at__date__gte=date_from,
+        created_at__date__lte=date_to
+    ).select_related('teacher', 'teacher__profile').order_by('-created_at')
+    
+    # Format data untuk response
+    data = {
+        'submissions': [
+            {
+                'id': sub.id,
+                'teacher_name': sub.teacher.profile.full_name if hasattr(sub.teacher, 'profile') else 'Unknown',
+                'subject': sub.get_subject_display() or sub.subject,
+                'class_name': sub.class_name,
+                'status': sub.status,
+                'status_display': sub.get_status_display(),
+                'expression': sub.predicted_label or '-',
+                'created_at': sub.created_at.isoformat(),
+            }
+            for sub in submissions
+        ]
+    }
+    
+    return JsonResponse(data)
+
+
 def home(request):
     if request.user.is_authenticated:
         return redirect('role-redirect')
@@ -306,4 +368,5 @@ def home(request):
 
 def about(request):
     return HttpResponseForbidden('Halaman about dinonaktifkan untuk sistem ini.')
+
 

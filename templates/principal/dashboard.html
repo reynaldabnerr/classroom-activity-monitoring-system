@@ -141,27 +141,19 @@
                 <span class="total-badge">{{ stat.total }} videos</span>
             </div>
             <div class="subject-breakdown">
-                <div class="status-item">
-                    <span class="status-label">✓ Selesai</span>
-                    <div class="status-bar">
-                        <div class="status-fill completed" style="width: {{ stat.completed|multiply:100|divide:stat.total }}%"></div>
+                {% if stat.expressions %}
+                    {% for expr, count in stat.expressions %}
+                    <div class="expression-row">
+                        <span class="expression-name">{{ expr }}</span>
+                        <div class="expression-bar">
+                            <div class="expression-fill" style="width: {% if stat.expressions.0.1 %}{{ count|multiply:100|divide:stat.expressions.0.1 }}%{% else %}0%{% endif %}"></div>
+                        </div>
+                        <span class="expression-value">{{ count }}</span>
                     </div>
-                    <span class="status-count">{{ stat.completed }}</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">⊙ Diproses</span>
-                    <div class="status-bar">
-                        <div class="status-fill processing" style="width: {{ stat.processing|multiply:100|divide:stat.total }}%"></div>
-                    </div>
-                    <span class="status-count">{{ stat.processing }}</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">✕ Gagal</span>
-                    <div class="status-bar">
-                        <div class="status-fill failed" style="width: {{ stat.failed|multiply:100|divide:stat.total }}%"></div>
-                    </div>
-                    <span class="status-count">{{ stat.failed }}</span>
-                </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="text-align: center; color: #999; font-size: 12px; padding: 8px 0; margin: 0;">Belum ada data ekspresi</p>
+                {% endif %}
             </div>
         </div>
         {% empty %}
@@ -271,6 +263,7 @@
         <table class="table">
             <thead>
                 <tr>
+                    <th>Tanggal Upload</th>
                     <th>Guru</th>
                     <th>Mapel</th>
                     <th>Kelas</th>
@@ -282,6 +275,7 @@
             <tbody>
                 {% for item in submissions %}
                     <tr>
+                        <td style="font-size: 13px; color: #6c757d;">{{ item.created_at|date:"d M Y" }}</td>
                         <td>{{ item.teacher.profile.full_name }}</td>
                         <td>{{ item.get_subject_display|default:item.subject }}</td>
                         <td>{{ item.class_name }}</td>
@@ -290,12 +284,156 @@
                         <td><a href="{% url 'principal-submission-detail' item.id %}" style="color: #007e86; font-weight: 600; text-decoration: none;">→</a></td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="6" style="text-align: center; color: #999; padding: 20px;">Belum ada data upload.</td></tr>
+                    <tr><td colspan="7" style="text-align: center; color: #999; padding: 20px;">Belum ada data upload.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
+
+<!-- Filter by Date -->
+<section class="card date-filter-section">
+    <div class="section-header">
+        <div class="section-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" preserveAspectRatio="xMidYMid meet">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        </div>
+        <h2>Filter Upload Berdasarkan Tanggal</h2>
+    </div>
+    
+    <div class="date-filter-controls">
+        <div class="date-input-group">
+            <label for="filter-date-from">Dari Tanggal:</label>
+            <input type="date" id="filter-date-from" class="date-input" value="">
+        </div>
+        <div class="date-input-group">
+            <label for="filter-date-to">Sampai Tanggal:</label>
+            <input type="date" id="filter-date-to" class="date-input" value="">
+        </div>
+        <button id="apply-date-filter" class="filter-button">Terapkan Filter</button>
+        <button id="reset-date-filter" class="filter-button reset-btn">Reset</button>
+    </div>
+
+    <div class="date-filter-results">
+        <div class="filter-info" style="display: none; margin-bottom: 16px;">
+            <p id="filter-status" style="font-size: 13px; color: #6c757d; margin: 0;">
+                Menampilkan data dari <span id="filter-date-range"></span>
+            </p>
+        </div>
+
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tanggal Upload</th>
+                        <th>Guru</th>
+                        <th>Mapel</th>
+                        <th>Kelas</th>
+                        <th>Status</th>
+                        <th>Ekspresi</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="date-filter-table-body">
+                    <tr><td colspan="7" style="text-align: center; color: #999; padding: 20px;">Silakan pilih tanggal dan tekan 'Terapkan Filter' untuk melihat data.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateFromInput = document.getElementById('filter-date-from');
+        const dateToInput = document.getElementById('filter-date-to');
+        const applyBtn = document.getElementById('apply-date-filter');
+        const resetBtn = document.getElementById('reset-date-filter');
+        const filterInfo = document.querySelector('.filter-info');
+        const tableBody = document.getElementById('date-filter-table-body');
+        const filterStatus = document.getElementById('filter-status');
+        const filterDateRange = document.getElementById('filter-date-range');
+
+        // Set default dates (today and 7 days ago)
+        const today = new Date();
+        const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        
+        dateFromInput.valueAsDate = sevenDaysAgo;
+        dateToInput.valueAsDate = today;
+
+        applyBtn.addEventListener('click', function() {
+            const dateFrom = dateFromInput.value;
+            const dateTo = dateToInput.value;
+
+            if (!dateFrom || !dateTo) {
+                alert('Silakan pilih tanggal dari dan sampai');
+                return;
+            }
+
+            if (new Date(dateFrom) > new Date(dateTo)) {
+                alert('Tanggal dari tidak boleh lebih besar dari tanggal sampai');
+                return;
+            }
+
+            // Format dates for display
+            const fromDisplay = new Date(dateFrom).toLocaleDateString('id-ID', { 
+                year: 'numeric', month: 'long', day: 'numeric' 
+            });
+            const toDisplay = new Date(dateTo).toLocaleDateString('id-ID', { 
+                year: 'numeric', month: 'long', day: 'numeric' 
+            });
+
+            filterDateRange.textContent = `${fromDisplay} hingga ${toDisplay}`;
+            filterInfo.style.display = 'block';
+
+            // Fetch data from backend
+            fetch(`/api/submissions-by-date/?date_from=${dateFrom}&date_to=${dateTo}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.submissions && data.submissions.length > 0) {
+                        tableBody.innerHTML = data.submissions.map(item => `
+                            <tr>
+                                <td style="font-size: 13px; color: #6c757d;">
+                                    ${new Date(item.created_at).toLocaleDateString('id-ID')}
+                                </td>
+                                <td>${item.teacher_name}</td>
+                                <td>${item.subject}</td>
+                                <td>${item.class_name}</td>
+                                <td><span class="badge badge-${item.status}">${item.status_display}</span></td>
+                                <td><span style="font-weight: 600; color: #007e86;">${item.expression || '-'}</span></td>
+                                <td><a href="/kepala-sekolah/submission/${item.id}/" style="color: #007e86; font-weight: 600; text-decoration: none;">→</a></td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999; padding: 20px;">Tidak ada data upload pada tanggal yang dipilih.</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #dc3545; padding: 20px;">Terjadi kesalahan saat mengambil data.</td></tr>';
+                });
+        });
+
+        resetBtn.addEventListener('click', function() {
+            dateFromInput.value = '';
+            dateToInput.value = '';
+            filterInfo.style.display = 'none';
+            tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999; padding: 20px;">Silakan pilih tanggal dan tekan \'Terapkan Filter\' untuk melihat data.</td></tr>';
+        });
+
+        // Prevent page scroll to top
+        applyBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+        });
+
+        resetBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+        });
+    });
+</script>
 
 <style>
     /* Previous styles preserved and enhanced */
@@ -635,6 +773,49 @@
         background: linear-gradient(90deg, #dc3545, #c82333);
     }
 
+    /* Expression Row in Subject Analytics */
+    .expression-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+    }
+
+    .expression-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: #2c3e50;
+        min-width: 70px;
+        text-transform: capitalize;
+    }
+
+    .expression-bar {
+        flex: 1;
+        height: 6px;
+        background: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .expression-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #007e86, #04555c);
+        border-radius: 3px;
+        transition: width 0.4s ease;
+    }
+
+    .expression-value {
+        font-size: 12px;
+        font-weight: 700;
+        color: #007e86;
+        min-width: 25px;
+        text-align: right;
+    }
+
+    .status-fill.failed {
+        background: linear-gradient(90deg, #dc3545, #c82333);
+    }
+
     .status-count {
         font-size: 11px;
         font-weight: 700;
@@ -934,6 +1115,132 @@
         .page-head h1 {
             font-size: 24px;
         }
+
+        .date-filter-controls {
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .date-input-group {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .filter-button {
+            padding: 10px 16px;
+            font-size: 13px;
+        }
     }
+
+    /* Date Filter Styles */
+    .date-filter-section {
+        margin-top: 24px;
+    }
+
+    .date-filter-controls {
+        display: flex;
+        align-items: flex-end;
+        gap: 16px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        background: linear-gradient(135deg, rgba(0, 126, 134, 0.02), transparent);
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid rgba(0, 126, 134, 0.08);
+    }
+
+    .date-input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .date-input-group label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .date-input {
+        padding: 10px 12px;
+        border: 1px solid rgba(0, 126, 134, 0.2);
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: inherit;
+        background: white;
+        color: #2c3e50;
+        transition: all 0.2s ease;
+    }
+
+    .date-input:focus {
+        outline: none;
+        border-color: #007e86;
+        box-shadow: 0 0 0 3px rgba(0, 126, 134, 0.1);
+        background: #fafbfc;
+    }
+
+    .filter-button {
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #007e86, #04555c);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 126, 134, 0.16);
+    }
+
+    .filter-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 126, 134, 0.24);
+        filter: brightness(1.1);
+    }
+
+    .filter-button:active {
+        transform: translateY(0);
+    }
+
+    .filter-button.reset-btn {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .filter-button.reset-btn:hover {
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+        filter: brightness(1.1);
+    }
+
+    .date-filter-results {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .filter-info {
+        background: linear-gradient(135deg, rgba(0, 126, 134, 0.06), rgba(0, 126, 134, 0.02));
+        padding: 12px 16px;
+        border-left: 4px solid #007e86;
+        border-radius: 6px;
+    }
+
+    .filter-info p {
+        margin: 0;
+        color: #2c3e50;
+        font-weight: 500;
+    }
+
 </style>
 {% endblock %}
