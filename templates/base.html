@@ -20,7 +20,8 @@
                         <a href="{% url 'teacher-dashboard' %}">Dashboard Guru</a>
                         <a href="{% url 'teacher-upload' %}">Upload Video</a>
                     {% elif auth_role == ROLE_PRINCIPAL %}
-                        <a href="{% url 'principal-dashboard' %}">Dashboard Kepala Sekolah</a>
+                        <a href="{% url 'principal-dashboard' %}">Dashboard</a>
+                        <a href="{% url 'model-validation' %}">Validation</a>
                     {% endif %}
                     <form method="post" action="{% url 'logout' %}" class="logout-form">
                         {% csrf_token %}

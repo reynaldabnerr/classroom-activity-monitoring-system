@@ -50,10 +50,10 @@ class SimpleEfficientNetInference:
         """
         Prediksi pada semua face crops di folder.
         Classifier menghasilkan 6 classes untuk expression recognition:
-        0=Happy, 1=Sad, 2=Angry, 3=Surprised, 4=Neutral, 5=Tired
+        0=Angry, 1=Happy, 2=Neutral, 3=Sad, 4=Surprised, 5=Tired
         
         Return: (total_faces, avg_confidence, predicted_label, expression_breakdown)
-        expression_breakdown = {'Happy': count, 'Sad': count, ...}
+        expression_breakdown = {'Angry': count, 'Happy': count, ...}
         """
         face_dir = Path(face_dir)
         face_files = sorted(face_dir.glob('face_*.jpg'))
@@ -64,13 +64,13 @@ class SimpleEfficientNetInference:
         predictions = []
         error_count = 0
         
-        # Expression class mapping
+        # Expression class mapping (MUST match training: angry, happy, neutral, sad, surprised, tired)
         expression_map = {
-            0: 'Happy',
-            1: 'Sad',
-            2: 'Angry',
-            3: 'Surprised',
-            4: 'Neutral',
+            0: 'Angry',
+            1: 'Happy',
+            2: 'Neutral',
+            3: 'Sad',
+            4: 'Surprised',
             5: 'Tired'
         }
         
@@ -99,24 +99,13 @@ class SimpleEfficientNetInference:
         if not predictions:
             return len(face_files), 0.0, f'Model failed on all faces ({error_count} errors)', {}
 
-        # Filter predictions by confidence threshold (>= 0.75)
-        confidence_threshold = 0.75
-        filtered_predictions = [p for p in predictions if p['confidence'] >= confidence_threshold]
-        
-        if not filtered_predictions:
-            # If no predictions pass threshold, use all
-            filtered_predictions = predictions
-            confidence_info = f"(no faces met threshold {confidence_threshold}, using all {len(predictions)})"
-        else:
-            confidence_info = f"(filtered {len(filtered_predictions)}/{len(predictions)} faces by confidence >= {confidence_threshold})"
-
-        # Calculate breakdown from filtered predictions
+        # Calculate breakdown from ALL predictions (no confidence filter)
         breakdown = {expr: 0 for expr in expression_map.values()}
-        for pred in filtered_predictions:
+        for pred in predictions:
             breakdown[pred['expression']] += 1
 
-        avg_confidence = np.mean([p['confidence'] for p in filtered_predictions])
-        pred_classes = [p['class'] for p in filtered_predictions]
+        avg_confidence = np.mean([p['confidence'] for p in predictions])
+        pred_classes = [p['class'] for p in predictions]
         most_common_class = max(set(pred_classes), key=pred_classes.count)
         
         # Determine overall label based on most common expression

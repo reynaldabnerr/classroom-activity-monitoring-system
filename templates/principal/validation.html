@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load static custom_filters %}
+
+{% block title %}Validasi Model - Dashboard TA{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🔥 Strategi Validasi Website (Bab 4)</h2>
+        <a href="{% url 'principal-dashboard' %}" class="btn btn-outline-secondary btn-sm">Kembali ke Dashboard</a>
+    </div>
+
+    <!-- Ringkasan Akurasi Keseluruhan -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase mb-1">Total Video Diuji</h6>
+                    <h2 class="mb-0">{{ total_submissions }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase mb-1">Total Valid (Sesuai)</h6>
+                    <h2 class="mb-0">{{ total_valid }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase mb-1">Rata-rata Similarity</h6>
+                    <h2 class="mb-0">{{ avg_similarity }}%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-dark shadow">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase mb-1">Akurasi Sistem (%)</h6>
+                    <h2 class="mb-0">{{ accuracy }}%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. Validasi Utama: Per Video -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">✅ 1. Validasi Utama (Per Video)</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-3">Membandingkan Ekspresi Dominan yang dideteksi Website vs Ground Truth Dataset T7.</p>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Video ID</th>
+                            <th>Mata Pelajaran</th>
+                            <th>Durasi (Est)</th>
+                            <th>GT Dominan (Dataset)</th>
+                            <th>Website Dominan</th>
+                            <th>Sesuai?</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in submissions %}
+                        <tr>
+                            <td><code>{{ item.video_id }}</code></td>
+                            <td>{{ item.obj.get_subject_display }}</td>
+                            <td>{{ item.duration }}</td>
+                            <td>
+                                {% if item.obj.ground_truth_label %}
+                                    <span class="badge bg-secondary">{{ item.obj.ground_truth_label }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-info text-dark">{{ item.obj.predicted_label|default:"-" }}</span>
+                            </td>
+                            <td>
+                                {% if item.obj.is_correct is True %}
+                                    <span class="text-success" style="font-size: 1.2rem;">✅</span>
+                                {% elif item.obj.is_correct is False %}
+                                    <span class="text-danger" style="font-size: 1.2rem;">❌</span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'principal-submission-detail' item.obj.id %}" class="btn btn-sm btn-outline-primary">Detail</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="py-4">Belum ada data video yang diproses untuk divalidasi.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Validasi Distribusi -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">✅ 2. Validasi Distribusi (Perbandingan Persentase)</h5>
+            <span class="badge bg-light text-success">Berdasarkan Jumlah (Count) per Kategori</span>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-4">Membandingkan sebaran ekspresi antara Dataset T7 vs Hasil Prediksi Model AI.</p>
+            
+            {% for item in submissions %}
+            <div class="mb-5 border-bottom pb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0">Video: <code>{{ item.obj.original_video.name }}</code></h6>
+                </div>
+                <div class="row">
+                    <div class="col-md-7">
+                        <table class="table table-sm table-striped border">
+                            <thead>
+                                <tr class="table-dark">
+                                    <th>Kategori Ekspresi</th>
+                                    <th>GT (%)</th>
+                                    <th>Website (%)</th>
+                                    <th>Selisih (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dist in item.distributions %}
+                                <tr>
+                                    <td>{{ dist.label }}</td>
+                                    <td><strong>{{ dist.gt_pct }}%</strong></td>
+                                    <td><strong>{{ dist.model_pct }}%</strong></td>
+                                    <td>
+                                        {% if dist.gt_pct > 0 or dist.model_pct > 0 %}
+                                            {% if dist.gt_pct > dist.model_pct %}
+                                                <span class="text-danger">-{{ dist.gt_pct|subtract:dist.model_pct|floatformat:1 }}%</span>
+                                            {% else %}
+                                                <span class="text-success">+{{ dist.model_pct|subtract:dist.gt_pct|floatformat:1 }}%</span>
+                                            {% endif %}
+                                        {% else %}
+                                            0.0%
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <canvas id="chart-{{ item.obj.id }}" style="max-height: 250px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for item in submissions %}
+        new Chart(document.getElementById('chart-{{ item.obj.id }}'), {
+            type: 'bar',
+            data: {
+                labels: [{% for d in item.distributions %}'{{ d.label }}',{% endfor %}],
+                datasets: [
+                    {
+                        label: 'GT Dataset (%)',
+                        data: [{% for d in item.distributions %}{{ d.gt_pct }},{% endfor %}],
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgb(54, 162, 235)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Website (%)',
+                        data: [{% for d in item.distributions %}{{ d.model_pct }},{% endfor %}],
+                        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                        borderColor: 'rgb(255, 99, 132)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        {% endfor %}
+    });
+</script>
+{% endblock %}

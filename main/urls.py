@@ -15,6 +15,7 @@ urlpatterns = [
     path('guru/api/submission/<int:submission_id>/status/', views.submission_processing_status, name='submission-status'),
 
     path('kepala-sekolah/dashboard/', views.principal_dashboard, name='principal-dashboard'),
+    path('kepala-sekolah/validation/', views.model_validation, name='model-validation'),
     path('kepala-sekolah/submission/<int:submission_id>/', views.principal_submission_detail, name='principal-submission-detail'),
     path('api/submissions-by-date/', views.submissions_by_date, name='submissions-by-date'),
 

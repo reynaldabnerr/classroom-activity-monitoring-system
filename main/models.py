@@ -1,6 +1,12 @@
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
+import os
+import shutil
+from pathlib import Path
+from django.conf import settings
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 
 class UserProfile(models.Model):
@@ -56,6 +62,9 @@ class VideoSubmission(models.Model):
 	total_faces = models.PositiveIntegerField(default=0)
 	model_score = models.FloatField(default=0.0)
 	predicted_label = models.CharField(max_length=100, blank=True)
+	ground_truth_label = models.CharField(max_length=100, blank=True)
+	ground_truth_breakdown = models.TextField(default='{}')
+	is_correct = models.BooleanField(null=True, blank=True)
 	# Expression breakdown: JSON format {'Happy': 15, 'Sad': 8, ...}
 	expression_breakdown = models.TextField(default='{}')
 	process_log = models.TextField(blank=True)
@@ -82,3 +91,26 @@ class VideoSubmission(models.Model):
 
 	def __str__(self):
 		return f"{self.subject} - {self.class_name} ({self.get_status_display()})"
+
+@receiver(post_delete, sender=VideoSubmission)
+def delete_media_files(sender, instance, **kwargs):
+    """
+    Otomatis hapus file video dan folder preprocessed saat record dihapus.
+    Ini mencakup penghapusan via Dashboard maupun Admin Panel.
+    """
+    # 1. Hapus file video original
+    if instance.original_video:
+        if os.path.isfile(instance.original_video.path):
+            try:
+                os.remove(instance.original_video.path)
+            except Exception as e:
+                print(f"Gagal menghapus file video: {e}")
+
+    # 2. Hapus folder preprocessed (face crops)
+    if instance.preprocessed_dir:
+        preproc_path = Path(instance.preprocessed_dir)
+        if preproc_path.exists() and preproc_path.is_dir():
+            try:
+                shutil.rmtree(preproc_path)
+            except Exception as e:
+                print(f"Gagal menghapus folder preprocessed: {e}")

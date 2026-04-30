@@ -1,13 +1,75 @@
+import os
 import subprocess
 import sys
 import json
+import re
 from pathlib import Path
-
 from django.conf import settings
 from django.utils import timezone
-
 from .models import VideoSubmission
 from .model_inference import SimpleEfficientNetInference
+
+
+def _extract_video_id(video_filename):
+    """Return dataset video ID from uploaded file paths like videos/raw/00004.MTS."""
+    name = Path(video_filename).name
+    stem = Path(name).stem
+    match = re.search(r'\d{5}', stem)
+    if match:
+        return match.group(0)
+    return stem.split('_')[0][:5]
+
+
+def _check_ground_truth_from_dataset(video_filename, predicted_label):
+    """
+    Check ground truth from T7 drive dataset.
+    Returns: (found_label, is_correct, ground_truth_breakdown)
+    """
+    import os
+    from pathlib import Path
+
+    # Get video ID from basename, not the full storage path.
+    video_id = _extract_video_id(video_filename)
+    
+    # Path to dataset on T7 drive
+    dataset_path = Path("/Volumes/T7/Data/validasi website/merged")
+    
+    if not dataset_path.exists():
+        return None, None, {}
+        
+    label_mapping = {
+        'angry': 'Angry', 'happy': 'Happy', 'sad': 'Sad', 
+        'surprised': 'Surprised', 'neutral': 'Neutral', 'tired': 'Tired'
+    }
+    
+    gt_breakdown = {}
+    found_label = None
+    
+    # NEW COUNT-BASED LOGIC:
+    # 1. Iterate through ALL expression folders in the dataset
+    # 2. Count images matching the video_id in EACH folder
+    for folder_name in os.listdir(dataset_path):
+        folder_path = dataset_path / folder_name
+        if not folder_path.is_dir():
+            continue
+        
+        # Count images in this category/folder
+        matches = list(folder_path.glob(f"{video_id}*"))
+        if matches:
+            label_name = label_mapping.get(folder_name.lower(), folder_name.capitalize())
+            count = len(matches)
+            gt_breakdown[label_name] = count
+    
+    if not gt_breakdown:
+        return None, None, {}
+
+    # Determine dominant label from GT breakdown
+    found_label = max(gt_breakdown, key=gt_breakdown.get)
+    
+    clean_prediction = predicted_label.replace(' (dominan)', '').strip()
+    is_correct = (clean_prediction == found_label)
+            
+    return found_label, is_correct, gt_breakdown
 
 
 def _run_preprocessing(video_path, output_dir):
@@ -81,10 +143,17 @@ def process_submission(submission: VideoSubmission):
         return
 
     total_faces, score, label, breakdown = _run_dummy_model_on_preprocessed(out_dir)
+    
+    # Auto-validate with T7 dataset using distribution/count logic
+    gt_label, is_correct, gt_breakdown = _check_ground_truth_from_dataset(submission.original_video.name, label)
+
     submission.status = VideoSubmission.STATUS_COMPLETED
     submission.total_faces = total_faces
     submission.model_score = score
     submission.predicted_label = label
+    submission.ground_truth_label = gt_label or ""
+    submission.ground_truth_breakdown = json.dumps(gt_breakdown)
+    submission.is_correct = is_correct
     submission.expression_breakdown = json.dumps(breakdown)
     submission.processed_at = timezone.now()
     submission.preprocessed_dir = str(out_dir)
@@ -94,6 +163,9 @@ def process_submission(submission: VideoSubmission):
             'total_faces',
             'model_score',
             'predicted_label',
+            'ground_truth_label',
+            'ground_truth_breakdown',
+            'is_correct',
             'expression_breakdown',
             'processed_at',
             'preprocessed_dir',

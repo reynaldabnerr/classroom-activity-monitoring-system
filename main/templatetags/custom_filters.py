@@ -36,6 +36,15 @@ def divide(value, arg):
 
 
 @register.filter
+def subtract(value, arg):
+    """Subtract arg from value"""
+    try:
+        return float(value) - float(arg)
+    except (TypeError, ValueError):
+        return 0
+
+
+@register.filter
 def dict_sum_values(dict_obj):
     """Sum all values in a dictionary"""
     try:

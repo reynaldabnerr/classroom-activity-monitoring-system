@@ -141,31 +141,13 @@ def submission_processing_status(request, submission_id):
 
 @role_required([UserProfile.ROLE_TEACHER])
 def delete_submission(request, submission_id):
-    """Delete a video submission and its associated files"""
+    """Delete a video submission. Media files are handled by post_delete signal in models.py"""
     submission = get_object_or_404(VideoSubmission, id=submission_id, teacher=request.user)
     
     if request.method == 'POST':
-        # Delete original video file
-        if submission.original_video:
-            try:
-                submission.original_video.delete()
-            except Exception as e:
-                print(f"Error deleting video file: {e}")
-        
-        # Delete preprocessed directory
-        if submission.preprocessed_dir:
-            try:
-                preproc_path = Path(submission.preprocessed_dir)
-                if preproc_path.exists():
-                    shutil.rmtree(preproc_path)
-                    print(f"Deleted preprocessed directory: {preproc_path}")
-            except Exception as e:
-                print(f"Error deleting preprocessed directory: {e}")
-        
-        # Delete database record
-        submission_id = submission.id
+        # Database record deletion will trigger post_delete signal
         submission.delete()
-        messages.success(request, 'Video berhasil dihapus.')
+        messages.success(request, 'Video dan seluruh data medianya berhasil dihapus.')
         return redirect('teacher-dashboard')
     
     # If GET request, show confirmation page
@@ -370,3 +352,91 @@ def about(request):
     return HttpResponseForbidden('Halaman about dinonaktifkan untuk sistem ini.')
 
 
+@role_required([UserProfile.ROLE_PRINCIPAL])
+def model_validation(request):
+    import json
+    from .services import _check_ground_truth_from_dataset, _extract_video_id
+
+    submissions = VideoSubmission.objects.filter(status=VideoSubmission.STATUS_COMPLETED).order_by('-created_at')
+    
+    total_submissions = submissions.count()
+
+    # Process submissions for display
+    processed_submissions = []
+    for sub in submissions:
+        video_id = _extract_video_id(sub.original_video.name)
+
+        if not sub.ground_truth_label or sub.ground_truth_breakdown in ("", "{}"):
+            gt_label, is_correct, gt_breakdown = _check_ground_truth_from_dataset(
+                sub.original_video.name,
+                sub.predicted_label or ""
+            )
+            if gt_label:
+                sub.ground_truth_label = gt_label
+                sub.ground_truth_breakdown = json.dumps(gt_breakdown)
+                sub.is_correct = is_correct
+                sub.save(update_fields=['ground_truth_label', 'ground_truth_breakdown', 'is_correct'])
+
+        # Load breakdowns
+        model_breakdown = {}
+        gt_breakdown = {}
+        try:
+            model_breakdown = json.loads(sub.expression_breakdown)
+            gt_breakdown = json.loads(sub.ground_truth_breakdown)
+        except:
+            pass
+            
+        # Get duration logic (placeholder or from actual metadata if available)
+        # Using a random dummy duration for Bab 4 simulation if not in model
+        duration = f"{sub.total_faces // 30} menit" if sub.total_faces else "-"
+        
+        # Calculate percentages for distributions
+        model_total = sum(model_breakdown.values()) if model_breakdown else 0
+        gt_total = sum(gt_breakdown.values()) if gt_breakdown else 0
+        
+        clean_prediction = (sub.predicted_label or "").replace(' (dominan)', '').strip()
+        
+        distributions = []
+        all_labels = set(list(model_breakdown.keys()) + list(gt_breakdown.keys()))
+        for label in sorted(all_labels):
+            model_val = model_breakdown.get(label, 0)
+            gt_val = gt_breakdown.get(label, 0)
+            
+            model_pct = (model_val / model_total * 100) if model_total > 0 else 0
+            gt_pct = (gt_val / gt_total * 100) if gt_total > 0 else 0
+            
+            distributions.append({
+                'label': label,
+                'model_count': model_val,
+                'gt_count': gt_val,
+                'model_pct': round(model_pct, 1),
+                'gt_pct': round(gt_pct, 1),
+                'is_match': (label == sub.ground_truth_label and label == clean_prediction)
+            })
+            
+        # Calculate Similarity based on distribution difference
+        total_diff = sum([abs(d['model_pct'] - d['gt_pct']) for d in distributions])
+        avg_mae = total_diff / len(distributions) if distributions else 0
+        similarity = max(0, 100 - avg_mae)
+
+        processed_submissions.append({
+            'obj': sub,
+            'video_id': video_id,
+            'duration': duration,
+            'model_total': model_total,
+            'gt_total': gt_total,
+            'distributions': distributions,
+            'similarity': round(similarity, 2)
+        })
+
+    total_valid = sum(1 for item in processed_submissions if item['obj'].is_correct is True)
+    accuracy = (total_valid / total_submissions * 100) if total_submissions > 0 else 0
+    avg_similarity = sum([s['similarity'] for s in processed_submissions]) / total_submissions if total_submissions > 0 else 0
+        
+    return render(request, 'principal/validation.html', {
+        'submissions': processed_submissions,
+        'total_submissions': total_submissions,
+        'total_valid': total_valid,
+        'accuracy': round(accuracy, 2),
+        'avg_similarity': round(avg_similarity, 2)
+    })
